@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 def do_subconv(padded_image,x,y,filter_arr, filter_divider = 1):
 #    print "point  x: ", x , "y  : ",y
     rows, columns = filter_arr.shape    
-    sum =0
+    sum =0.0
     for j in range(rows):
         row_flipped = rows - j -1;
         for k in range(columns):
@@ -23,13 +23,14 @@ def do_subconv(padded_image,x,y,filter_arr, filter_divider = 1):
 #           print "filter x  : ", row_flipped, "filter y  : ", column_flipped
            #print "padded_image ", padded_image[x + j - 1,y + k - 1], "* filter_arr  : ",filter_arr[row_flipped,column_flipped]
            
-           sum = sum + (padded_image[x + j - 1,y + k - 1] * filter_arr[row_flipped,column_flipped] / filter_divider)
+           sum = sum + (int(padded_image[x + j - 1,y + k - 1]) * int(filter_arr[row_flipped,column_flipped]) / filter_divider)
 #           print "sum  : ", sum
     return sum
          
 def do_display_fft(input_2d_array):
     fft2 = np.fft.fft2(input_2d_array)
-    freq = np.abs(fft2)
+    freq = np.fft.fftshift(fft2)
+    
     return freq
     
 ## 2D Convolution Function definition is here
@@ -95,20 +96,39 @@ def main():
         d = int(input('Enter filter division coefficient, d = '))
         if (d != 0):
             break;
-    filter = np.zeros((m, n),dtype=np.uint8)
+    filter = np.zeros((m, n),dtype=np.int8)
     for i in range(m):
         for j in range(n):#           
             #int(input('Enter filter ',i,j))
             filter[i,j] = int(input('Enter filter[' + str(i) +', ' + str(j) + ']  = '))            
 
 #    filter = np.append(filter, np.array([[d,m,n]]), axis=0)
-    #norm_image = conv2d(gray_image, filter, d)    
-    freqresp = do_display_fft(gray_image)
-    fig = plt.figure(figsize=(14, 6))
-    ax1 = fig.add_subplot(121)
-    ax2 = fig.add_subplot(122)
-    ax2.imshow(gray_image, interpolation = "none")
-    ax1.imshow(np.log(freqresp), interpolation= "none")
+    norm_image = conv2d(gray_image, filter, d)    
+    
+    
+    image_freqresp = do_display_fft(gray_image)
+    normimage_freqresp = do_display_fft(norm_image)
+    filter_freqresp = do_display_fft(filter)
+    
+    image_magnitude_spectrum = np.log(np.abs(image_freqresp))
+    normimage_magnitude_spectrum = np.log(np.abs(normimage_freqresp))
+    filter_magnitude_spectrum = np.log(np.abs(filter_freqresp))
+
+    plt.subplot(321),plt.imshow(gray_image, cmap = 'gray')
+    plt.title('Input Image'), plt.xticks([]), plt.yticks([])
+    
+    plt.subplot(322),plt.imshow(image_magnitude_spectrum, cmap = 'gray')
+    plt.title('Image Magnitude Spectrum'), plt.xticks([]), plt.yticks([])
+    
+    plt.subplot(323),plt.imshow(norm_image, cmap = 'gray')
+    plt.title('Output Image'), plt.xticks([]), plt.yticks([])
+    
+    plt.subplot(324),plt.imshow(normimage_magnitude_spectrum, cmap = 'gray')
+    plt.title('Output Image Spectrum'), plt.xticks([]), plt.yticks([])
+    
+    plt.subplot(325),plt.imshow(filter_magnitude_spectrum, cmap = 'gray')
+    plt.title('Filter Freq Response'), plt.xticks([]), plt.yticks([])
+    
     plt.show()
     
     #do_display_fft(norm_image)
