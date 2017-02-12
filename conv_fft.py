@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Spyder Editor
+Created on Sat Feb 8 15:15:15 2017
 
-This is a temporary script file.
+@author: denny
 """
 
 import cv2 # load opencv
@@ -11,19 +11,29 @@ import sys
 import matplotlib.pyplot as plt
 
 ## 1D Convolution Function definition is here
-def do_subconv(padded_image,x,y,filter_arr, filter_divider = 1):
-#    print "point  x: ", x , "y  : ",y
+def do_subconv(input_image,x,y,filter_arr, filter_divider = 1):
+    #print "point  x: ", x , "y  : ",y
+    i_rows, i_columns = input_image.shape    
     rows, columns = filter_arr.shape    
     sum =0.0
     for j in range(rows):
         row_flipped = rows - j -1;
         for k in range(columns):
            column_flipped = columns - k -1;
-#           print "image  x  : ", x + j - 1, "image  y  : ",y + k - 1
+           image_xindex = (x + j - int(rows/2))
+           image_yindex = (y + k - int(columns/2))
+           
+           #print "xindex ", xindex, "yindex", yindex)
+           if (image_xindex < 0             or 
+               image_xindex >= i_rows       or 
+               image_yindex < 0             or 
+               image_yindex >= i_columns ):
+                       sum = sum + 0
+           else :
 #           print "filter x  : ", row_flipped, "filter y  : ", column_flipped
            #print "padded_image ", padded_image[x + j - 1,y + k - 1], "* filter_arr  : ",filter_arr[row_flipped,column_flipped]
            
-           sum = sum + (int(padded_image[x + j - 1,y + k - 1]) * int(filter_arr[row_flipped,column_flipped]) / filter_divider)
+               sum = sum + ((input_image[image_xindex,image_yindex]) * (filter_arr[row_flipped,column_flipped]) / filter_divider)
 #           print "sum  : ", sum
     return sum
          
@@ -37,19 +47,18 @@ def do_display_fft(input_2d_array):
 def conv2d( image_arr, filter_arr, filter_divider = 1 ):
    
     # convolve both arrays and print the result."
-    padded_image = pad_zero(image_arr)
-    rows, columns = padded_image.shape
+    #padded_image = pad_zero(image_arr)
+    rows, columns = image_arr.shape
    
     #conv_result = np.array([range(rows),range(columns)])
-    conv_result = np.zeros((rows - 2,columns - 2),dtype=np.float32)
-    norm_image = np.zeros((rows - 2,columns - 2),dtype=np.uint8)
+    conv_result = np.zeros((rows ,columns ),dtype=np.float32)
+    norm_image = np.zeros((rows ,columns ),dtype=np.uint8)
     
     for i in range(rows):
         for j in range(columns):
-            if i >= 0 and j >= 0 and i < (rows -2) and j < (columns - 2):
-                
-                temp = do_subconv(padded_image, i +1, j + 1, filter_arr, filter_divider);
-                conv_result[i,j] = temp
+            #if i >= 0 and j >= 0 and i < (rows -2) and j < (columns - 2):
+            temp = do_subconv(image_arr, i , j , filter_arr, filter_divider);
+            conv_result[i,j] = temp
                 #print "conv_result  : ", conv_result[i,j]
 
     #conv_result = int(conv_result / maximum * 255.0)
@@ -62,7 +71,6 @@ def conv2d( image_arr, filter_arr, filter_divider = 1 ):
     return  norm_image
 
 # To Call the conv2d function
-
 def pad_zero( gray_image):
     height, width = gray_image.shape
     _result = np.zeros((height+2, width+2),'uint8')
