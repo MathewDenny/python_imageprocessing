@@ -28,17 +28,15 @@ def do_subconv(input_image,x,y,filter_arr, filter_divider = 1):
                image_xindex >= i_rows       or 
                image_yindex < 0             or 
                image_yindex >= i_columns ):
-                       sum = sum + 0
+                sum = sum + 0
            else :
-#           print "filter x  : ", row_flipped, "filter y  : ", column_flipped
-           #print "padded_image ", padded_image[x + j - 1,y + k - 1], "* filter_arr  : ",filter_arr[row_flipped,column_flipped]
-           
+        
                sum = sum + ((input_image[image_xindex,image_yindex]) * (filter_arr[row_flipped,column_flipped]) / filter_divider)
 #           print "sum  : ", sum
     return sum
          
-def do_display_fft(input_2d_array):
-    fft2 = np.fft.fft2(input_2d_array)
+def do_display_fft(input_2d_array, divider = 1):
+    fft2 = np.fft.fft2(input_2d_array/divider)
     freq = np.fft.fftshift(fft2)
     
     return freq
@@ -59,15 +57,11 @@ def conv2d( image_arr, filter_arr, filter_divider = 1 ):
             #if i >= 0 and j >= 0 and i < (rows -2) and j < (columns - 2):
             temp = do_subconv(image_arr, i , j , filter_arr, filter_divider);
             conv_result[i,j] = temp
-                #print "conv_result  : ", conv_result[i,j]
-
+               
     #conv_result = int(conv_result / maximum * 255.0)
     cv2.normalize(conv_result, norm_image, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U )
-    print "Inside the function conv2d conv_result : ", conv_result
- 
-#    cv2.imshow('dst_rt', norm_image)
-#    cv2.waitKey(0)
-#    cv2.destroyAllWindows()
+    #print "Inside the function conv2d norm_image : ", norm_image
+
     return  norm_image
 
 # To Call the conv2d function
@@ -89,8 +83,13 @@ def main():
     except:
         print "Unexpected error:", sys.exc_info()[0]
         sys.exit(1)
-    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-  
+
+    (image_rows, image_columns, image_channels) = img.shape 
+    print "channels = ", image_channels;
+    if (image_channels > 1):
+        gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray_image = img
     #filter details
     m = 1
     n = 1
@@ -104,24 +103,25 @@ def main():
         d = int(input('Enter filter division coefficient, d = '))
         if (d != 0):
             break;
-    filter = np.zeros((m, n),dtype=np.int8)
+    filter = np.zeros((m, n),dtype=np.float32)
     for i in range(m):
         for j in range(n):#           
             #int(input('Enter filter ',i,j))
             filter[i,j] = int(input('Enter filter[' + str(i) +', ' + str(j) + ']  = '))            
 
-#    filter = np.append(filter, np.array([[d,m,n]]), axis=0)
-    norm_image = conv2d(gray_image, filter, d)    
-    
+
+    # apply the filter
+    norm_image = conv2d(gray_image, filter, d)      
     
     image_freqresp = do_display_fft(gray_image)
     normimage_freqresp = do_display_fft(norm_image)
-    filter_freqresp = do_display_fft(filter)
+    filter_freqresp = do_display_fft(filter, d)
     
-    image_magnitude_spectrum = np.log(np.abs(image_freqresp))
-    normimage_magnitude_spectrum = np.log(np.abs(normimage_freqresp))
-    filter_magnitude_spectrum = np.log(np.abs(filter_freqresp))
+    image_magnitude_spectrum = 20 * np.log(np.abs(image_freqresp))
+    normimage_magnitude_spectrum = 20 *np.log(np.abs(normimage_freqresp))
+    filter_magnitude_spectrum = 20*np.log((np.abs(filter_freqresp) + 1))
 
+    figure = plt.figure(figsize=(15,30))
     plt.subplot(321),plt.imshow(gray_image, cmap = 'gray')
     plt.title('Input Image'), plt.xticks([]), plt.yticks([])
     
@@ -137,11 +137,9 @@ def main():
     plt.subplot(325),plt.imshow(filter_magnitude_spectrum, cmap = 'gray')
     plt.title('Filter Freq Response'), plt.xticks([]), plt.yticks([])
     
-    plt.show()
     
-    #do_display_fft(norm_image)
-    #do_display_fft(filter)
-    cv2.destroyAllWindows()
+    plt.show()
+    figure.savefig('plot.png')
     
     
 if __name__== "__main__":

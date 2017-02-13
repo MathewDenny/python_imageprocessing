@@ -15,28 +15,35 @@ import matplotlib.pyplot as plt
 import scipy.stats as st
 
 
-def gkern(kernlen=21, nsig=3):
+def gkern(kernlen=5, nsig=0.1):
     """Returns a 2D Gaussian kernel array."""
 
     interval = (2*nsig+1.)/(kernlen)
     x = np.linspace(-nsig-interval/2., nsig+interval/2., kernlen+1)
     kern1d = np.diff(st.norm.cdf(x))
+    
     kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
     kernel = kernel_raw/kernel_raw.sum()
     return kernel
 
 ## 1D Convolution Function definition is here
 def add_gaussian_noise(input_image):
+    """ Adds gauusian noise with zero mean """
+    noise_image = np.random.normal(0.0,0.01,(input_image.shape))
+    rows, columns = input_image.shape
+    #noise_image = input_image + noise_image
+    norm_noise = np.zeros((rows ,columns ),dtype=np.uint8)
+    cv2.normalize(noise_image, norm_noise, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U )
+    print "noise_normalised -" ,norm_noise
+    print "input_image -" ,input_image
     
-    noise_image = np.random.normal(0.0,10,(input_image.shape))
-    noise_image = input_image + noise_image
-    return noise_image
+    noise_image = ((input_image + norm_noise))
+    cv2.normalize(noise_image, norm_noise, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U )
+    print "final noise_image added-" ,norm_noise
+    return norm_noise
 
 def main():
-    gkernel = gkern(5,1)
-    print "Gaussian Kernel is", gkernel
-    grows, gcolumns = gkernel.shape
-    print "grows =", grows, " gcols =" , gcolumns
+   
     file = raw_input('Enter the input filename: ')
     #load image into environment
     try:
@@ -50,6 +57,12 @@ def main():
 #    print "The original image is ", gray_image
     #plt.imshow(gray_image)
     
+    # creating a gaussian kernel
+    gkernel = gkern(5,0.1)
+    d = 1
+    print "Gaussian Kernel is", gkernel
+    grows, gcolumns = gkernel.shape
+    print "grows =", grows, " gcols =" , gcolumns
      #filter details
     m = 1
     n = 1
@@ -67,10 +80,12 @@ def main():
     for i in range(m):
         for j in range(n):#           
             #int(input('Enter filter ',i,j))
-            filter[i,j] = int(input('Enter filter[' + str(i) +', ' + str(j) + ']  = '))            
+            filter[i,j] = 1;
+                  #int(input('Enter filter[' + str(i) +', ' + str(j) + ']  = '))            
 
-#    filter = np.append(filter, np.array([[d,m,n]]), axis=0)
-    norm_image = conv2d(noise_image, gkernel, 1)    
+
+    norm_image = conv2d(noise_image, filter, d) 
+    #norm_image = conv2d(noise_image, gkernel, d) 
     plt.figure(figsize=(10,30))
     plt.subplot(311),plt.imshow(gray_image, cmap = 'gray')
     plt.title('Input Image'), plt.xticks([]), plt.yticks([])
@@ -83,10 +98,7 @@ def main():
     print "The noise image is ", noise_image
     print "The output image is ", noise_image
     print "The input image is ", norm_image
-#    cv2.imshow('dst_rt', noise_image)
-#    cv2.waitKey(0)
-#    cv2.destroyAllWindows()
-    #filter details
+
     
     
 if __name__== "__main__":
