@@ -29,15 +29,16 @@ def gkern(kernlen=5, nsig=0.1):
 ## 1D Convolution Function definition is here
 def add_gaussian_noise(input_image):
     """ Adds gauusian noise with zero mean """
-    noise_image = np.random.normal(0.0,0.01,(input_image.shape))
+    noise_image = np.random.normal(0.0,30,(input_image.shape))
     rows, columns = input_image.shape
     #noise_image = input_image + noise_image
     norm_noise = np.zeros((rows ,columns ),dtype=np.uint8)
-    cv2.normalize(noise_image, norm_noise, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U )
+    
+    #cv2.normalize(noise_image, norm_noise, 0, 100, cv2.NORM_MINMAX, dtype=cv2.CV_8U )
     print "noise_normalised -" ,norm_noise
     print "input_image -" ,input_image
     
-    noise_image = ((input_image + norm_noise))
+    noise_image = ((input_image + noise_image))
     cv2.normalize(noise_image, norm_noise, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U )
     print "final noise_image added-" ,norm_noise
     return norm_noise
