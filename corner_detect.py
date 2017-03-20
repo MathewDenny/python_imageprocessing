@@ -9,26 +9,113 @@ import scipy as sp
 import numpy as np
 import sys
 import scipy.ndimage.filters as fi
-
+import math as math
 #import scipy as sp
 import matplotlib.pyplot as plt
 import cv2 # load opencv
 
-def generate_1d_gaussiankernel( sigma):
-    filter_length = int((4 * sigma)) + 1
-    result = np.zeros( filter_length )
-    mid = filter_length/2
-    result[mid] = 1
-    return fi.gaussian_filter1d(result, sigma)
+#def generate_1d_gaussiankernel( sigma):
+#    filter_length = int((4 * sigma)) + 1
+#    result = np.zeros( filter_length )
+#    mid = filter_length/2
+#    result[mid] = 1
+#    return fi.gaussian_filter1d(result, sigma)
 
-def process_1d_gaussiankernel(guassian, sigma):
-    filter_length = int((4 * sigma)) + 1
-    for j in range(int(filter_length/2)):
-        guassian[j] = guassian[j] * -1
-    return guassian
+def generate_1d_gaussiankernel( sigma, size):
+    
+    x = np.mgrid[-size:size+1]
+    
+    #x and y derivatives of a 2D gaussian with standard dev half of size
+    # (ignore scale factor)
+    twosigmasquare = 2 * sigma**2
+    onebyroottwopi = 1.0/math.sqrt((2*math.pi))
+    x = np.mgrid[-size/2:size/2+1]
+    
+#    kernlen = size
+#    interval = (2*sigma+1.)/(kernlen)   
+#    x = np.linspace(-sigma-interval/2., sigma+interval/2., kernlen+1)
+#    y = np.linspace(-sigma-interval/2., sigma+interval/2., kernlen+1)
+    
+    
+    gx = onebyroottwopi *  np.exp(-(x**2/float(twosigmasquare))) * (1.0/sigma)
+    print gx, gx.sum()
+    return gx
+    
+def generate_2d_gaussiankernel(sigma, size, sizey = None):
+    """ Returns a normalized 2D gauss kernel array for convolutions """
+    size = int(size)
+    if not sizey:
+        sizey = size
+    else:
+        sizey = int(sizey)
+    twosigmasquare = 2 * sigma**2
+    onebytwopi = 1.0/((2*math.pi))
+    
+    x, y = np.mgrid[-size/2:size/2+1, -sizey/2:sizey/2+1]
+    g = onebytwopi *  np.exp(-(x**2/float(twosigmasquare)) - 
+                               (y**2/float(twosigmasquare))) * (1.0/sigma**2)
+    return g / g.sum()
+
+#def generate_2d_gaussiankernel(nsig, kernlen, sizey = None):
+#    """Returns a 2D Gaussian kernel array."""
+#
+#    interval = (2*nsig+1.)/(kernlen)
+#    x = np.linspace(-nsig-interval/2., nsig+interval/2., kernlen+1)
+#    kern1d = np.diff(sp.stats.norm.cdf(x))
+#    kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
+#    kernel = kernel_raw/kernel_raw.sum()
+#    return kernel
+
+def gauss_derivative_kernels(sigma, size, sizey=None):
+    """ returns x and y derivatives of a 2D 
+        gauss kernel array for convolutions """
+    size = int(size)
+    if not sizey:
+        sizey = size
+    else:
+        sizey = int(sizey)
+    y, x = np.mgrid[-size:size+1, -sizey:sizey+1]
+    
+    #x and y derivatives of a 2D gaussian with standard dev half of size
+    # (ignore scale factor)
+    twosigmasquare = 2 * sigma**2
+    onebyroottwopi = 1.0/math.sqrt((2*math.pi))
+    x, y = np.mgrid[-size/2:size/2+1, -sizey/2:sizey/2+1]
+    
+#    kernlen = size
+#    interval = (2*sigma+1.)/(kernlen)   
+#    x = np.linspace(-sigma-interval/2., sigma+interval/2., kernlen+1)
+#    y = np.linspace(-sigma-interval/2., sigma+interval/2., kernlen+1)
+    
+    
+    gx = onebyroottwopi *  np.exp(-(x**2/float(twosigmasquare))) * (1.0/sigma**3)
+    gy = onebyroottwopi *  np.exp(-(y**2/float(twosigmasquare))) * (1.0/sigma**3)
+    
+    gx = - x * gx# math.exp(-(x**2/float(temp)+y**2/float(temp))) 
+    gy = - y * gy# math.exp(-(x**2/float((0.5*size)**2)+y**2/float((0.5*sizey)**2))) 
+
+    return gx,gy
+
+def gauss_derivatives(im,sigma, n, ny=None):
+    """ returns x and y derivatives of an image using gaussian 
+        derivative filters of size n. The optional argument 
+        ny allows for a different size in the y direction."""
+
+    gx,gy = gauss_derivative_kernels(sigma, n, sizey=ny)
+
+    imx = sp.signal.convolve2d(im,gx, mode='same')
+    imy = sp.signal.convolve2d(im,gy, mode='same')
+
+    return imx,imy
 
 def detect_local_maxima(image,window_size):
+    threshold = 2
+    for i in range(window_size*window_size):        
+        if (i != (window_size * window_size/2)):
+            if ((image[0,(window_size * window_size/2)] - image[0,i]) == 0) :
+                return 0
     if (image[0,(window_size * window_size/2)] == image.max()
+        and image.max() - image.min() > threshold
         and image[0,(window_size * window_size/2)] > 0):
         
         return 1
@@ -44,51 +131,27 @@ def plot_harris_points(image, filtered_coords):
     plt.axis('off')
     plt.show()
     
-def get_harris_points(harrisim, min_distance=10, threshold=0.5):
-    """ return corners from a Harris response image
-        min_distance is the minimum nbr of pixels separating 
-        corners and image boundary"""
-
-    #find top corner candidates above a threshold
-    corner_threshold = max(harrisim.ravel()) * threshold
-    harrisim_t = (harrisim > corner_threshold) * 1
-    
-    #get coordinates of candidates
-    candidates = harrisim_t.nonzero()
-    coords = [ (candidates[0][c],candidates[1][c]) for c in range(len(candidates[0]))]
-    #...and their values
-    candidate_values = [harrisim[c[0]][c[1]] for c in coords]
-    
-    #sort candidates
-    index = np.argsort(candidate_values)
-    
-    #store allowed point locations in array
-    allowed_locations = np.zeros(harrisim.shape)
-    allowed_locations[min_distance:-min_distance,min_distance:-min_distance] = 1
-    
-    #select the best points taking min_distance into account
-    filtered_coords = []
-    for i in index:
-        if allowed_locations[coords[i][0]][coords[i][1]] == 1:
-            filtered_coords.append(coords[i])
-            allowed_locations[(coords[i][0]-min_distance):(coords[i][0]+min_distance),
-                (coords[i][1]-min_distance):(coords[i][1]+min_distance)] = 0
-                
-    return filtered_coords
 
 # To Call the conv2d function
 def find_image_gradient( gray_image):
     height, width = gray_image.shape
     sigma = 5
+    filter_length = int((4 * sigma)) + 1
 #    sp.ndimage.filters.gaussian_filter1d(input, sigma, axis=-1, order=0, output=None, mode='reflect', cval=0.0, truncate=4.0)
-    guassian = generate_1d_gaussiankernel(sigma)
-    guassian = process_1d_gaussiankernel(guassian, sigma)
+#    guassian = generate_1d_gaussiankernel(sigma)
+   
+    imx,imy = gauss_derivatives(gray_image, sigma, filter_length)
     
-    imx = np.zeros(gray_image.shape)
-    fi.gaussian_filter(gray_image,(sigma),(0,1), imx)
+   
+#    imy = sp.ndimage.convolve1d(gray_image, guassian, 0)   
+
+   
     
-    imy = np.zeros(gray_image.shape)
-    fi.gaussian_filter(gray_image,(sigma),(1,0), imy)
+#    imx = np.zeros(gray_image.shape)
+#    fi.gaussian_filter(gray_image,(sigma),(0,1), imx)
+#    
+#    imy = np.zeros(gray_image.shape)
+#    fi.gaussian_filter(gray_image,(sigma),(1,0), imy)
    
 #    imx = sp.ndimage.convolve1d(gray_image, guassian, 1)
 #    imy = sp.ndimage.convolve1d(gray_image, guassian, 0)   
@@ -98,16 +161,25 @@ def find_image_gradient( gray_image):
     Iy2 = np.multiply(imy , imy)
     IxIy = np.multiply(imx , imy)
     filter_length = int((6 * sigma)) + 1
-    print ((imx)) , Ix2
+    gauss2d = generate_2d_gaussiankernel(2*sigma, filter_length)
     
-    result = np.zeros( filter_length )
-    mid = filter_length/2
-    result[mid] = 1
-    smoothening_filter = fi.gaussian_filter1d(result, sigma)
+#    result = np.zeros( filter_length )
+#    mid = filter_length/2
+#    result[mid] = 1
+#    smoothening_filter = generate_1d_gaussiankernel( 2*sigma, filter_length)
+#              
+##    smoothening_filter = fi.gaussian_filter1d(result, 2*sigma)
+#    
+#    smoothening_filter = np.outer(smoothening_filter , smoothening_filter.transpose())
+   
     
-    smoothening_filter = np.outer(smoothening_filter , smoothening_filter.transpose())
-
-
+    
+    Ix2 = sp.signal.convolve2d(Ix2,gauss2d, mode='same')
+    Iy2 = sp.signal.convolve2d(Iy2,gauss2d, mode='same')
+    IxIy = sp.signal.convolve2d(IxIy,gauss2d, mode='same')
+    print "Test", gauss2d, imx.shape,imy.shape
+    
+    
 #    Ix2 = sp.signal.convolve2d(Ix2, smoothening_filter, 'same', 'symm', 0)
 #    Iy2 = sp.signal.convolve2d(Iy2, smoothening_filter, 'same', 'symm', 0)
 #    IxIy = sp.signal.convolve2d(IxIy, smoothening_filter, 'same', 'symm', 0)
@@ -117,15 +189,20 @@ def find_image_gradient( gray_image):
 #    fi.gaussian_filter(Iy2trial,(2 * sigma),0, Iy2, 'reflect',0, filter_length)
 #    fi.gaussian_filter(IxIytrial,(2 * sigma),0, IxIy, 'reflect',0, filter_length)
     
-    fi.gaussian_filter(Ix2,(2 * sigma),0, Ix2, 'reflect',0, filter_length)
-    fi.gaussian_filter(Iy2,(2 * sigma),0, Iy2, 'reflect',0, filter_length)
-    fi.gaussian_filter(IxIy,(2 * sigma),0, IxIy, 'reflect',0, filter_length)
+#    fi.gaussian_filter(Ix2,(2 * sigma),0, Ix2, 'reflect',0, filter_length)
+#    fi.gaussian_filter(Iy2,(2 * sigma),0, Iy2, 'reflect',0, filter_length)
+#    fi.gaussian_filter(IxIy,(2 * sigma),0, IxIy, 'reflect',0, filter_length)
     
    
     Idet =  ((np.multiply(Ix2 , Iy2) - np.multiply(IxIy, IxIy)))    
     Itrace =  Ix2 + Iy2
     H = Idet  - (Itrace**2)* 0.06
+    plt.figure(figsize=(10,20))
+    plt.subplot(211),plt.imshow(H, cmap = 'gray')
+    plt.title('Ix'), plt.xticks([]), plt.yticks([])
     
+    plt.subplot(212),plt.imshow(Iy2, cmap = 'gray')
+    plt.title('Iy'), plt.xticks([]), plt.yticks([])
     
 #    offset = 3/2
 #    cornerList = []
@@ -168,12 +245,7 @@ def find_image_gradient( gray_image):
     
 #    print H
 
-    plt.figure(figsize=(10,20))
-    plt.subplot(211),plt.imshow(imx, cmap = 'gray')
-    plt.title('Ix'), plt.xticks([]), plt.yticks([])
-    
-    plt.subplot(212),plt.imshow(H, cmap = 'gray')
-    plt.title('Iy'), plt.xticks([]), plt.yticks([])
+   
 
     maxima_found = 0
     window_size = 3
@@ -202,7 +274,7 @@ def find_image_gradient( gray_image):
             if (is_local_max == 1):
                 c_points.append((i,j))
                 maxima_found = maxima_found + 1 
-#                print "Selected",  window, j, i
+                print "Selected",  window, j, i
                 if (maxima_found > MAX):
                     print maxima_found
                     exit = 1
