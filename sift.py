@@ -5,6 +5,7 @@ Created on Sat Mar 18 23:22:22 2017
 @author: Denny
 """
 from scipy import signal
+from corner_detect import gauss_derivatives
 import scipy as sp
 import numpy as np
 import sys
@@ -17,66 +18,15 @@ from corner_detect import find_image_gradient
 
 import cv2 # load opencv
 
-#def generate_1d_gaussiankernel( sigma):
-#    filter_length = int((4 * sigma)) + 1
-#    result = np.zeros( filter_length )
-#    mid = filter_length/2
-#    result[mid] = 1
-#    return fi.gaussian_filter1d(result, sigma)
-
-def gauss_derivative_kernels(sigma, size, sizey=None):
-    """ returns x and y derivatives of a 2D 
-        gauss kernel array for convolutions """
-    size = int(size)
-    if not sizey:
-        sizey = size
-    else:
-        sizey = int(sizey)
-    y, x = np.mgrid[-size:size+1, -sizey:sizey+1]
-    
-    #x and y derivatives of a 2D gaussian with standard dev half of size
-    # (ignore scale factor)
-    twosigmasquare = 2 * sigma**2
-    onebyroottwopi = 1.0/math.sqrt((2*math.pi))
-    x, y = np.mgrid[-size/2:size/2+1, -sizey/2:sizey/2+1]
-    
-#    kernlen = size
-#    interval = (2*sigma+1.)/(kernlen)   
-#    x = np.linspace(-sigma-interval/2., sigma+interval/2., kernlen+1)
-#    y = np.linspace(-sigma-interval/2., sigma+interval/2., kernlen+1)
-    
-    
-    gx = onebyroottwopi *  np.exp(-(x**2/float(twosigmasquare))) * (1.0/sigma**3)
-    gy = onebyroottwopi *  np.exp(-(y**2/float(twosigmasquare))) * (1.0/sigma**3)
-    
-    gx = - x * gx# math.exp(-(x**2/float(temp)+y**2/float(temp))) 
-    gy = - y * gy# math.exp(-(x**2/float((0.5*size)**2)+y**2/float((0.5*sizey)**2))) 
-
-    return gx,gy
-
-def gauss_derivatives(im,sigma, n, ny=None):
-    """ returns x and y derivatives of an image using gaussian 
-        derivative filters of size n. The optional argument 
-        ny allows for a different size in the y direction."""
-
-    gx,gy = gauss_derivative_kernels(sigma, n, sizey=ny)
-
-    imx = sp.signal.convolve2d(im,gx, mode='same')
-    imy = sp.signal.convolve2d(im,gy, mode='same')
-
-    return imx,imy
 
 def rotate_image(image):
-    angle = 2.0
+    angle = 15.0
     image_center = tuple(np.array(image.shape)/2)
-    
-#    rot_mat = cv2.getRotationMatrix2D(image_center,angle,1.0)
-#    rotated_image = cv2.warpAffine(image, rot_mat, image.shape,flags=cv2.INTER_LINEAR)
-#    c_points = find_image_gradient(rotated_image)
-#    plot_harris_points(rotated_image, c_points)
-    
+    rotated_image = np.zeros(((image.shape[1]),(image.shape[0])))
+  
     rot_mat = cv2.getRotationMatrix2D(image_center,angle,1.0)
-    rotated_image = cv2.warpAffine(image, rot_mat, image.shape)
+    rotated_image = cv2.warpAffine(image, rot_mat, 
+                                   ((image.shape[1]),(image.shape[0])),flags=cv2.INTER_LINEAR)
     return rotated_image
 
 def plot_matching_points(img1, img2, match_list1, match_list2):
@@ -101,19 +51,10 @@ def plot_matching_points(img1, img2, match_list1, match_list2):
         pt_b = (int(match_list2[m][1] + w1), int(match_list2[m][0]))
         print "ploting = ", pt_a, pt_b
         
-        cv2.line(view, pt_a , pt_b, color,2)
-    
-#    screen_res = 1280, 720
-#    scale_width = screen_res[0] / view.shape[1]
-#    scale_height = screen_res[1] / view.shape[0]
-#    scale = min(scale_width, scale_height)
-#    window_width = int(view.shape[1] * scale)
-#    window_height = int(view.shape[0] * scale)
-
-#    cv2.namedWindow('dst_rt', cv2.WINDOW_NORMAL)
-#    cv2.resizeWindow('dst_rt', window_width, window_height)
-
-
+        cv2.line(view, pt_a , pt_b, color,1)         
+        cv2.circle(view,pt_a, 5, (0,128,0), 1)
+        cv2.circle(view,pt_b, 5, (255,128,0), 1)
+        
     cv2.imshow("dst_rt", view)
     cv2.waitKey()
     
@@ -152,12 +93,10 @@ def concatenate_normalize_hog(hist_points_arr, n):
 #    print "length of histogram array = ", len(hist_points_arr), n   
     concatenated = np.array(8*len(hist_points_arr))
     ctr = 0
-    for i in range(0,n*len(hist_points_arr) , n): 
-        
+    for i in range(0,n*len(hist_points_arr) , n):         
         concatenated = np.insert((concatenated),i,hist_points_arr[ctr])
         ctr = ctr + 1
-#    print concatenated
-#    print "concatenated size = ", concatenated[0:16]
+
     normalized_hist = LA.norm((concatenated), 2) 
     normalized_hist = concatenated / normalized_hist
     for i in range(128): 
@@ -198,8 +137,7 @@ def find_correspondence( sift_array1, c_points1, sift_array2, c_points2):
 #        else:
 #           match_list.append((elem1, "none"))     
 #            
-    print "MATCH = ", match_list1, match_list2
-    
+    print "MATCH = ", match_list1, match_list2  
     
     return match_list1, match_list2
     
@@ -215,8 +153,7 @@ def determine_gradient_and_orientation( imx, imy, size):
     
     for i in range(row):        
         for j in range(col):
-#            m[i,j] = np.square(imx[i,j+1] - imx[i,j-1]) + np.square(imy[i,j+1] - imy[i,j-1])
-#            m[i,j] =  np.sqrt(m[i,j])
+
             m[i,j] =  imx[i,j]**2 + imy[i,j]**2
             m[i,j] =  np.sqrt(m[i,j])
             if ((imx[i,j]) == 0):
@@ -231,20 +168,17 @@ def determine_gradient_and_orientation( imx, imy, size):
     
     
             
-# To Call the conv2d function
+# Determin the SIFT Descriptor
 def determine_gradients( gray_image,c_points):
     height, width = gray_image.shape
     sigma = 5
     filter_length = int((4 * sigma)) + 1
     #find the derivatives
    
-    imx,imy = gauss_derivatives(gray_image, sigma, filter_length)
+    
     row = gray_image.shape[0]
     col = gray_image.shape[1]
    
-    m = np.zeros(gray_image.shape)
-    Grad = np.zeros(gray_image.shape)
-    
     #Create a descriptor
     new_c_points = []
     N = 16
@@ -254,7 +188,7 @@ def determine_gradients( gray_image,c_points):
     hist_points = []
     sift_result = []
     
-#    patch = np.array((N,N)
+    # for each point take a 16x16 patch and find the dominant bin in Hog
     for i,elem in enumerate(c_points):
         r = elem[0]
         c = elem[1]
@@ -278,7 +212,7 @@ def determine_gradients( gray_image,c_points):
         histogram = compute_hog(x_q16x16_vector, N)
         dominant_orientation_bin, histogram_full = compute_dominant_and_shift(histogram)
         
-#        Calculate each 4x4
+#        Calculate each 4x4 and rotate its hog to match dominant HoG
         ctr = 0
         del hist_points[:]
         #get all 4x4 patch
@@ -287,15 +221,15 @@ def determine_gradients( gray_image,c_points):
            
                 patch4x4 = x_q[r:r+NbyFour,c:c+NbyFour]
                 patch4x4_vector = patch4x4.reshape( 1, (NbyFour * NbyFour))
-#                print "gradpatch", patch4x4
+
                 histogram = compute_hog(patch4x4_vector, NbyFour)
                 histogram = histogram_shift(histogram, dominant_orientation_bin)                
                 hist_points.append(histogram)                
                 ctr = ctr + 1
-            
+        # Append the computed sift descriptor
         sift_result.append( concatenate_normalize_hog(hist_points, NbyTwo))
-#        print "sift_result shape =", sift_result[i].shape
-    print "Lenght of results = ", len(new_c_points), len(sift_result)   
+
+
     return sift_result,new_c_points
     
 def main():
@@ -314,26 +248,18 @@ def main():
         gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     else:
         gray_image = img
-     
-        
-    img = cv2.imread("corners2.jpg")
-    (image_rows, image_columns, image_channels) = img.shape 
-    print "channels = ", image_channels;
-    if (image_channels > 1):
-        gray_image2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    else:
-        gray_image2 = img
-        
+       
         
     c_points1 = find_image_gradient(gray_image)   
     sift_descriptor_array1,corresponding_c_points1 = determine_gradients(gray_image, c_points1)
     
     rotated_image = rotate_image(gray_image)
-    c_points2 = find_image_gradient(gray_image2)
-    sift_descriptor_array2,corresponding_c_points2 = determine_gradients(gray_image2, c_points2)
+#    rotated_image = gray_image2
+    c_points2 = find_image_gradient(rotated_image)
+    sift_descriptor_array2,corresponding_c_points2 = determine_gradients(rotated_image, c_points2)
     match_list1, match_list2 = find_correspondence(sift_descriptor_array1, corresponding_c_points1, 
                         sift_descriptor_array2, corresponding_c_points2  )
-    plot_matching_points(gray_image, gray_image2, match_list1, match_list2)
+    plot_matching_points(gray_image, rotated_image, match_list1, match_list2)
 #    plot_harris_points(gray_image, c_points)
     
 if __name__== "__main__":
