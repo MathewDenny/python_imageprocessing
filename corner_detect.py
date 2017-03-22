@@ -129,7 +129,7 @@ def find_image_gradient( gray_image, sigma = 1, MAX = 50):
     #smoothening the gradients
     gauss2d = generate_2d_gaussiankernel(2*sigma, filter_length)
     
-#    corners_image = cv2.goodFeaturesToTrack(gray_image, 30, 0.01, 10)
+
         
     Ix2 = sp.signal.convolve2d(Ixx,gauss2d, mode='same', boundary='symm')
     Iy2 = sp.signal.convolve2d(Iyy,gauss2d, mode='same', boundary='symm')
@@ -188,6 +188,7 @@ def find_image_gradient( gray_image, sigma = 1, MAX = 50):
                     break
 #    plt.figure()
 #    plt.gray()
+#    corners_image = cv2.goodFeaturesToTrack(gray_image, 30, 0.01, 10)
 #    plt.imshow(gray_image)
 #    points = ([(int(p[0,1]),int(p[0,0])) for p in corners_image]);#,[int(p[0,1]) for p in corners_image],'*')
 #    plt.plot([int(p[0,0]) for p in corners_image],[int(p[0,1]) for p in corners_image],'*')

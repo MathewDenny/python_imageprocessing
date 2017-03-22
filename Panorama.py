@@ -90,6 +90,7 @@ def stitch_images(left_image, right_image):
     
     plt.subplot(212),plt.imshow(right_image, cmap = 'gray')
     plt.title('right'), plt.xticks([]), plt.yticks([])
+    cv2.imwrite('stichedimage.png',view)
     
 def main():
 

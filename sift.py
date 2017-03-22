@@ -57,6 +57,7 @@ def plot_matching_points(img1, img2, match_list1, match_list2):
         
     cv2.imshow("dst_rt", view)
     cv2.waitKey()
+    cv2.imwrite('sift_matching.png',view)
     
 #patch values varies from 0 to 7;size is n*n
 def compute_hog(patch, n):
